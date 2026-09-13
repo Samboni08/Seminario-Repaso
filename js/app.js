@@ -1,18 +1,17 @@
 /* global supabase, SUPABASE_URL, SUPABASE_KEY */
-// Array donde se almacenan las tareas
 let tasks = [];
 let editingTaskId = null;
 let editingTask = null;
+let currentUser = null;
 const activeFilters = { priority: "todas", status: "todas" };
 
-// Inicializar el cliente de Supabase
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 1. OBTENER Y CARGAR TAREAS DESDE SUPABASE AL INICIAR
 async function fetchTasks() {
     let query = supabaseClient
         .from("tasks")
         .select("*")
+        .eq("user_id", currentUser.id)
         .order("created_at", { ascending: false });
 
     if (activeFilters.priority !== "todas") {
@@ -36,7 +35,18 @@ async function fetchTasks() {
     renderTasks();
 }
 
-// Elementos del HTML (solo los que SÍ existen en tu index.html)
+// Elementos de autenticación
+const authPanel = document.getElementById("auth-panel");
+const loginForm = document.getElementById("login-form");
+const signupForm = document.getElementById("signup-form");
+const loginTab = document.getElementById("login-tab");
+const signupTab = document.getElementById("signup-tab");
+const authStatus = document.getElementById("auth-status");
+const signOutButton = document.getElementById("sign-out-button");
+const appHeader = document.querySelector(".site-header");
+const appShell = document.getElementById("inicio");
+
+// Elementos de tareas
 const taskForm = document.getElementById("task-form");
 const taskList = document.getElementById("task-list");
 const applyFiltersButton = document.getElementById("apply-filters");
@@ -51,7 +61,26 @@ const progressLabel = document.getElementById("progress-label");
 const progressBar = document.getElementById("progress-bar");
 taskDeadlineInput.min = getTodayDate();
 
-document.addEventListener("DOMContentLoaded", fetchTasks);
+loginTab.addEventListener("click", () => setAuthMode("login"));
+signupTab.addEventListener("click", () => setAuthMode("signup"));
+
+loginForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+    await signIn(email, password);
+});
+
+signupForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+    const email = document.getElementById("signup-email").value.trim();
+    const password = document.getElementById("signup-password").value;
+    await signUp(email, password);
+});
+
+signOutButton.addEventListener("click", signOut);
+
+document.addEventListener("DOMContentLoaded", initializeAuth);
 
 applyFiltersButton.addEventListener("click", async function () {
     activeFilters.priority = document.getElementById("filter-priority").value;
@@ -59,7 +88,6 @@ applyFiltersButton.addEventListener("click", async function () {
     await fetchTasks();
 });
 
-// Crear una nueva tarea
 taskForm.addEventListener("submit", async function (event) {
     event.preventDefault();
 
@@ -89,7 +117,7 @@ taskForm.addEventListener("submit", async function (event) {
     } else {
         ({ data, error } = await supabaseClient
             .from("tasks")
-            .insert([{ ...taskDetails, completed: false }])
+            .insert([{ ...taskDetails, completed: false, user_id: currentUser.id }])
             .select());
     }
 
@@ -112,23 +140,12 @@ taskForm.addEventListener("submit", async function (event) {
 
 cancelEditButton.addEventListener("click", resetTaskForm);
 
-<<<<<<< HEAD
-// ======================================================
-// ELIMINAR TAREA
-// ======================================================
-taskList.addEventListener("click", async function (event) {
-=======
-// Eliminar o modificar (cambiar estado) tarea
 taskList.addEventListener("click", async function (event) {
 
->>>>>>> 178b472 (supabase)
     const target = event.target;
     const taskId = target.dataset.id;
     if (!taskId) return;
 
-<<<<<<< HEAD
-    if (target.classList.contains("more-button")) {
-=======
     if (target.classList.contains("edit-button")) {
         const task = tasks.find(currentTask => String(currentTask.id) === String(taskId));
         if (!task) return;
@@ -146,8 +163,6 @@ taskList.addEventListener("click", async function (event) {
     }
 
     if (target.classList.contains("more-button")) {
-
->>>>>>> 178b472 (supabase)
         const confirmar = confirm("¿Seguro que quieres eliminar esta tarea?");
         if (!confirmar) return;
 
@@ -162,18 +177,12 @@ taskList.addEventListener("click", async function (event) {
             return;
         }
 
-<<<<<<< HEAD
         tasks = tasks.filter(task => String(task.id) !== String(taskId));
-        renderTasks();
-    }
-});
-=======
-        tasks = tasks.filter(task => task.id !== taskId);
         renderTasks();
     }
 
     if (target.classList.contains("check-button")) {
-        const task = tasks.find(t => t.id === taskId);
+        const task = tasks.find(t => String(t.id) === String(taskId));
         if (!task) return;
 
         const updatedStatus = !task.completed;
@@ -194,7 +203,6 @@ taskList.addEventListener("click", async function (event) {
     }
 });
 
-// 4. RENDERIZADO EN EL DOM
 function renderTasks() {
     taskList.innerHTML = "";
 
@@ -227,7 +235,7 @@ function renderTasks() {
                 <p>${task.description || ""}</p>
                 <div class="task-meta">
                     <span class="date ${getDeadlineClass(task.deadline)}">${task.deadline}</span>
-                    <span class="priority ${task.priority}">
+                    <span class="priority ${normalizePriority(task.priority)}">
                         ${getPriorityName(task.priority)}
                     </span>
                 </div>
@@ -241,7 +249,6 @@ function renderTasks() {
 
         taskList.appendChild(li);
     });
-
 }
 
 function resetTaskForm() {
@@ -301,4 +308,108 @@ function formatPriorityForStorage(priority) {
     if (priority === "low") return "baja";
     return "media";
 }
->>>>>>> 178b472 (supabase)
+
+async function signUp(email, password) {
+    setAuthStatus("Creando tu cuenta...");
+    const { error } = await supabaseClient.auth.signUp({ email, password });
+
+    if (error) {
+        console.error("Error al registrarse:", error.message);
+        setAuthStatus(`Error al registrarse: ${error.message}`);
+        return;
+    }
+
+    setAuthMode("login");
+    setAuthStatus("Registro exitoso. Ya puedes iniciar sesión.", false);
+}
+
+async function signIn(email, password) {
+    setAuthStatus("Iniciando sesión...");
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+    if (error) {
+        console.error("Error al iniciar sesión:", error.message);
+        setAuthStatus(`Error al iniciar sesión: ${error.message}`);
+        return;
+    }
+
+    currentUser = data.user;
+    showAppUI();
+    await fetchTasks();
+}
+
+async function signOut() {
+    const { error } = await supabaseClient.auth.signOut();
+
+    if (error) {
+        console.error("Error al cerrar sesión:", error.message);
+        setAuthStatus(`Error al cerrar sesión: ${error.message}`);
+    }
+}
+
+async function initializeAuth() {
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+
+    if (error) {
+        console.error("Error al consultar la sesión:", error.message);
+        showLoginUI();
+        setAuthStatus(`No se pudo comprobar la sesión: ${error.message}`);
+        return;
+    }
+
+    if (session) {
+        currentUser = session.user;
+        showAppUI();
+        await fetchTasks();
+    } else {
+        showLoginUI();
+    }
+
+    supabaseClient.auth.onAuthStateChange((event, sessionState) => {
+        if (event === "SIGNED_IN" && sessionState) {
+            currentUser = sessionState.user;
+            showAppUI();
+            fetchTasks();
+        } else if (event === "SIGNED_OUT") {
+            currentUser = null;
+            tasks = [];
+            resetTaskForm();
+            renderTasks();
+            showLoginUI();
+        }
+    });
+}
+
+function showAppUI() {
+    authPanel.hidden = true;
+    appHeader.hidden = false;
+    appShell.hidden = false;
+    signOutButton.hidden = false;
+}
+
+function showLoginUI() {
+    authPanel.hidden = false;
+    appHeader.hidden = true;
+    appShell.hidden = true;
+    signOutButton.hidden = true;
+    setAuthMode("login");
+}
+
+function setAuthStatus(message, isError = true) {
+    authStatus.textContent = message;
+    authStatus.style.color = isError ? "var(--danger)" : "var(--success)";
+}
+
+function setAuthMode(mode) {
+    const isLogin = mode === "login";
+
+    loginTab.classList.toggle("active", isLogin);
+    signupTab.classList.toggle("active", !isLogin);
+    loginTab.setAttribute("aria-selected", String(isLogin));
+    signupTab.setAttribute("aria-selected", String(!isLogin));
+
+    loginForm.hidden = !isLogin;
+    signupForm.hidden = isLogin;
+
+    setAuthStatus("");
+}
