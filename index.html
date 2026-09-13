@@ -8,11 +8,48 @@
   <title>CloudTasks | Mis tareas</title>
 </head>
 <body>
-  <header class="site-header">
+
+  <div id="auth-panel" class="auth-panel">
+    <div class="auth-card">
+      <h1>CloudTasks</h1>
+      <p class="auth-intro">Inicia sesión o crea una cuenta para gestionar tus tareas.</p>
+      <div class="auth-tabs">
+        <button id="login-tab" class="auth-tab active" type="button" aria-selected="true">Iniciar sesión</button>
+        <button id="signup-tab" class="auth-tab" type="button" aria-selected="false">Crear cuenta</button>
+      </div>
+      <form id="login-form">
+        <div class="field">
+          <label for="login-email">Correo</label>
+          <input id="login-email" type="email" required placeholder="tucorreo@ejemplo.com">
+        </div>
+        <div class="field">
+          <label for="login-password">Contraseña</label>
+          <input id="login-password" type="password" required placeholder="••••••••">
+        </div>
+        <button class="primary-button" type="submit">Iniciar sesión</button>
+      </form>
+      <form id="signup-form" hidden>
+        <div class="field">
+          <label for="signup-email">Correo</label>
+          <input id="signup-email" type="email" required placeholder="tucorreo@ejemplo.com">
+        </div>
+        <div class="field">
+          <label for="signup-password">Contraseña</label>
+          <input id="signup-password" type="password" required placeholder="Mínimo 6 caracteres">
+        </div>
+        <button class="primary-button" type="submit">Crear cuenta</button>
+      </form>
+      <p id="auth-status" class="auth-status"></p>
+    </div>
+  </div>
+
+  <header class="site-header" hidden>
     <a class="brand" href="#inicio" aria-label="CloudTasks, inicio"><span class="brand-mark" aria-hidden="true">✓</span><span>CloudTasks</span></a>
     <p class="header-message">Organiza lo importante, un día a la vez.</p>
+    <button id="sign-out-button" class="secondary-button" type="button" hidden style="width:auto; margin-left:auto; padding:8px 16px;">Cerrar sesión</button>
   </header>
-  <main id="inicio" class="app-shell">
+
+  <main id="inicio" class="app-shell" hidden>
     <section class="intro" aria-labelledby="page-title">
       <div><p class="eyebrow">PANEL PERSONAL</p><h1 id="page-title">Mis tareas</h1><p class="intro-text">Mantén tus pendientes claros y avanza con foco.</p></div>
       <div class="progress-card" aria-label="Progreso de tareas"><strong id="progress-count">0 de 0</strong><span id="progress-label">tareas completadas</span><div class="progress-track" aria-hidden="true"><span id="progress-bar"></span></div></div>
@@ -58,8 +95,6 @@
             </div>
           </div>
         </div>
-        <!-- CAMBIO: se vacía el <ul>, ya no trae tareas escritas a mano.
-             Ahora todo su contenido lo genera renderTasks() en app.js -->
         <ul id="task-list" class="task-list">
         </ul>
       </section>
@@ -67,6 +102,7 @@
   </main>
   <footer class="site-footer">CloudTasks · Gestión de tareas simple y clara</footer>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
