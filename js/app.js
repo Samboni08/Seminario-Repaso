@@ -137,3 +137,31 @@ taskForm.addEventListener("submit", async function (event) {
 });
 
 cancelEditButton.addEventListener("click", resetTaskForm);
+
+// ======================================================
+// ELIMINAR TAREA
+// ======================================================
+taskList.addEventListener("click", async function (event) {
+    const target = event.target;
+    const taskId = target.dataset.id;
+    if (!taskId) return;
+
+    if (target.classList.contains("more-button")) {
+        const confirmar = confirm("¿Seguro que quieres eliminar esta tarea?");
+        if (!confirmar) return;
+
+        const { error } = await supabaseClient
+            .from("tasks")
+            .delete()
+            .eq("id", taskId);
+
+        if (error) {
+            console.error("Error al eliminar la tarea:", error.message);
+            alert("No se pudo eliminar la tarea.");
+            return;
+        }
+
+        tasks = tasks.filter(task => String(task.id) !== String(taskId));
+        renderTasks();
+    }
+});
